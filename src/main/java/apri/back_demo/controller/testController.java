@@ -1,5 +1,6 @@
 package apri.back_demo.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import apri.back_demo.exception.KakaoResponseException;
 import apri.back_demo.exception.NoSessionFoundException;
+import apri.back_demo.exception.TourAPIVKError;
 import apri.back_demo.model.LoginResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
 import apri.back_demo.service.SessionService;
+import apri.back_demo.service.TourApiCallService;
+import apri.back_demo.util.APIResultHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -31,10 +35,13 @@ public class testController {
     // Properties are only available when properties
     //
     public OAuthKakaoService oauthvertify;
+    TourApiCallService tapi;
 
-    public testController(SessionService sessionService, OAuthKakaoService oAuthKakaoService) {
+    public testController(SessionService sessionService, OAuthKakaoService oAuthKakaoService,
+            TourApiCallService tourApiCallService) {
         this.oauthvertify = oAuthKakaoService;
         this.sessionService = sessionService;
+        this.tapi = tourApiCallService;
 
     }
 
@@ -54,7 +61,8 @@ public class testController {
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();
 
-        return ResponseEntity.status(HttpStatus.OK).body(Map.of("sessionId", userSession.getSessionId(),"userId",userId));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(Map.of("sessionId", userSession.getSessionId(), "userId", userId));
 
     }
 
@@ -68,7 +76,8 @@ public class testController {
 
         Long userId = userSession.getUserId();
 
-        return ResponseEntity.status(HttpStatus.OK).body(Map.of("sessionId", userSession.getSessionId(),"userId",userId));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(Map.of("sessionId", userSession.getSessionId(), "userId", userId));
     }
 
     @PostMapping("/test/POST")
@@ -92,13 +101,60 @@ public class testController {
         return ResponseEntity.ok(Map.of("test", "test"));
     }
 
-    @PostMapping("/test/tourapi")
-    public ResponseEntity<?> basicTest(@RequestHeader Map<String, Object> authHeader,
-            HttpServletRequest request) {
+    @PostMapping("/test/tourapi/keyword")
+    public ResponseEntity<?> testSearchKeyword(@RequestHeader Map<String, Object> header,
+            @RequestBody Map<String, Object> reqBody, HttpServletRequest request) {
+
         if (!this.testingON)
             return ResponseEntity.noContent().build();
 
-        return null;
+        APIResultHandler handler = new APIResultHandler();
+        String searchWord = (String) reqBody.get("SearchKeyword");
+        String cat1 = (String) reqBody.get("cat1");
+        String cat2 = (String) reqBody.get("cat2");
+        String cat3 = (String) reqBody.get("cat3");
+
+        // TODO : Adjust areacode, sigunguCode to Incheon.
+        String msg = null;
+        // try-catch
+        msg = this.tapi.apiSearchKeyword(searchWord, cat1, cat2, cat3, null, null, null, null);
+
+        @SuppressWarnings("unused")
+        List<Map<String, Object>> searchResult = null;
+
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok(searchResult);
+    }
+
+    @PostMapping("/test/tourapi/location")
+    public ResponseEntity<?> testSearchLocation(@RequestHeader Map<String, Object> header,
+            @RequestBody Map<String, Object> reqBody, HttpServletRequest request) {
+        if (!this.testingON)
+            return ResponseEntity.noContent().build();
+        APIResultHandler handler = new APIResultHandler();
+
+        String posXString = (String) reqBody.get("posX");
+        String posYString = (String) reqBody.get("posY");
+
+        double posX = Double.valueOf(posXString);
+        double posY = Double.valueOf(posYString);
+        String msg;
+        msg = this.tapi.apiLocationBasedList(posX, posY, 1000);// radius = 1000 m
+        List<Map<String, Object>> searchResult = null;
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (TourAPIVKError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok(searchResult);
     }
 
     @PostMapping("/test/sessionCreateTest")

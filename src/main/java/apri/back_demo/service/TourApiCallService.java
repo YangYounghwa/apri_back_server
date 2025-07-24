@@ -60,7 +60,7 @@ public class TourApiCallService {
     public String apiLocationBasedList(double posX, double posY, double radius,int rows, int pageNo) {
         String baseUrl = KORSERVICE1_URL + locationBasedList2;
 
-        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 50, 1, this.ANDROID, "apricot");
+        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 100, 1, this.ANDROID, "apricot");
         // Requirements for tourAPI
         // includes _type : "json", "MobileOS":"AND",
 
@@ -143,7 +143,7 @@ public class TourApiCallService {
     public String apiCategoryCode(Long contentTypeId, String cat1, String cat2, String cat3) {
 
         String baseUrl = KORSERVICE1_URL + this.categoryCode2;
-        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 50, 1, this.ANDROID, "apricot");
+        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 100, 1, this.ANDROID, "apricot");
         // Requirements for tourAPI
         // includes _type : "json", "MobileOS":"AND",
 
@@ -216,7 +216,7 @@ public class TourApiCallService {
     ,String areaCode, String sigunguCode, String IDongRegnCd, String IDongSignguCd,String lclsSystm1,String lclsSystm2,String lclsSystm3){
 
 
-        return apiSearchKeyword(keyword,cat1,cat2,cat3,areaCode,sigunguCode,IDongRegnCd,IDongSignguCd,lclsSystm1,lclsSystm2,lclsSystm3,50,1);
+        return apiSearchKeyword(keyword,cat1,cat2,cat3,areaCode,sigunguCode,IDongRegnCd,IDongSignguCd,lclsSystm1,lclsSystm2,lclsSystm3,100,1);
     }
 
     public String apiSearchKeyword(String keyword, String cat1, String cat2, String cat3, String areaCode, String sigunguCode, String IDongRegnCd, String IDongSignguCd){

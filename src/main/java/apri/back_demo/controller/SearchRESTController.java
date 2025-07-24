@@ -62,8 +62,7 @@ public class SearchRESTController {
             e.printStackTrace();
         }
 
-
-        return null;
+        return ResponseEntity.ok(searchResult);
     }
 
     @PostMapping("/search/location")
@@ -90,7 +89,7 @@ public class SearchRESTController {
         }
 
 
-        return null;
+        return ResponseEntity.ok(searchResult);
     }
 
 

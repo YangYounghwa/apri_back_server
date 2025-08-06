@@ -13,6 +13,13 @@ java {
 	}
 }
 
+// adding jar libs.
+repositories {
+    flatDir {
+        dirs 'libs'
+    }
+}
+
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
@@ -36,6 +43,6 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	//Finder
-	implementation files('libs/app-1.0.0.jar')
+	implementation files('libs/finderLib-1.0.0.jar')
 }
 

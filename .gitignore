@@ -16,6 +16,9 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+
+
+# Test key files.
 .properties
 
 ### IntelliJ IDEA ###

@@ -54,12 +54,17 @@ public class SessionService {
                     rs.getString("session_id"),
                     rs.getLong("user_id"),
                     rs.getTimestamp("expires_at").toLocalDateTime()), sessionId);
+            
+                    
+            LocalDateTime expire1 = LocalDateTime.now().plusHours(1);
+            LocalDateTime expire2 =session.getExpiresAt();
+            LocalDateTime laterExpire = expire1.isAfter(expire2) ? expire1 : expire2;
 
             jdbc.update("""
                         UPDATE sessions
                         SET expires_at = ?
                         WHERE session_id = ?
-                    """, Timestamp.valueOf(LocalDateTime.now().plusHours(1)), sessionId);
+                    """, Timestamp.valueOf(laterExpire), sessionId);
 
             return session;
         } catch (DataAccessException e) {

@@ -8,6 +8,8 @@ import graph_routing_01.Finder.ApriPathFinder;
 import graph_routing_01.Finder.exceptions.ApriException;
 import graph_routing_01.Finder.exceptions.ApriPathExLibError;
 import graph_routing_01.Finder.exceptions.ResException;
+import graph_routing_01.Finder.model.ApriPath;
+import graph_routing_01.Finder.model.ApriPathDTO;
 
 import java.io.File;
 import java.net.URISyntaxException;
@@ -65,5 +67,27 @@ public class PathFinderService {
     }
 
 
+    public ApriPathDTO findPath(double stLon, double stLat, double endLon, double endLat)
+    {
+
+        return this.findPath(stLon,stLat,endLon,endLat,0.0,true,0);
+    }
+
+
+    public ApriPathDTO findPath(double stLon, double stLat, double endLon, double endLat,double startTime,
+    Boolean checkTime, int dayNum){
+        ApriPath path = null;
+        try {
+            path = this.apf.findPath(stLon,stLat,endLon,endLat,startTime,checkTime,dayNum);
+        } catch (ApriException | ApriPathExLibError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        return new ApriPathDTO(path);
+    }
+    
+
+    
 
 }

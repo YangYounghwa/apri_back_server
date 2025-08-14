@@ -38,17 +38,26 @@ public class PathFinderService {
        
     // }
         try {
-            apf.buildBaseGraph(apf.readSHP("data_folder\\simplified_split2.shp"));
 
 
+            File shpFile = Paths.get("data_folder", "simplified_split2.shp").toFile();
+            
+            System.out.println("Reading split shp.");
+            apf.buildBaseGraph(apf.readSHP(shpFile));
+
+            System.out.println("Reading busstop location csv");
         // 정류소의 위치를 도로에 추가해줍니다. 
-            apf.addBusstopNodes("data_folder\\busstop_location.csv");
+
+            File busCsv = Paths.get("data_folder", "busstop_location.csv").toFile();
+            apf.addBusstopNodes(busCsv);
         // problem occured here
 
-            apf.initBusTimeTable(new File("data_folder\\bus_timetable.csv"));
+            File busTimetableCsv = Paths.get("data_folder", "bus_timetable.csv").toFile();
+            apf.initBusTimeTable(busTimetableCsv);
 
 
-            apf.addBusRouteEdges("data_folder\\route_interval_distance.csv");
+            File routeIntervalFile = Paths.get("data_folder", "route_interval_distance.csv").toFile();
+            apf.addBusRouteEdges(routeIntervalFile);
 
                 
 

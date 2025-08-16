@@ -40,6 +40,7 @@ public class SessionService {
     public UserSession validateSession(String authString) throws NoSessionFoundException {
 
         if (authString == null || !authString.startsWith("Session ")) {
+            System.out.println(authString + " Missing or malformed session header");
             throw new NoSessionFoundException("Missing or malformed session header");
         }
 
@@ -68,6 +69,7 @@ public class SessionService {
 
             return session;
         } catch (DataAccessException e) {
+            System.err.println(sessionId+"No Session Found!");
             throw new NoSessionFoundException("No Session Found");
         } 
        /* //EmptyResultDataAccessException inherits DataAccessException 

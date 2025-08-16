@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import apri.back_demo.exception.KakaoResponseException;
 import apri.back_demo.exception.NoSessionFoundException;
+import apri.back_demo.exception.PathNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -28,4 +29,15 @@ public class GlobalExceptionHandler {
             "code",KAKAO_RES_ERROR_CODE
         ));
     }
+
+    private final int PATH_NOT_FOUND_ERROR_CODE = 531;
+
+        @ExceptionHandler(PathNotFoundException.class)
+    public ResponseEntity<?> handlePathNotFoundError(){
+        return ResponseEntity.status(PATH_NOT_FOUND_ERROR_CODE).body(Map.of(
+            "error","Path Not Found",
+            "code",PATH_NOT_FOUND_ERROR_CODE
+        ));
+    }
 }
+

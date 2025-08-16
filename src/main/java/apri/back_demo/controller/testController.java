@@ -1,5 +1,6 @@
 package apri.back_demo.controller;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -19,9 +20,11 @@ import apri.back_demo.exception.TourAPIVKError;
 import apri.back_demo.model.LoginResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
+import apri.back_demo.service.PathFinderService;
 import apri.back_demo.service.SessionService;
 import apri.back_demo.service.TourApiCallService;
 import apri.back_demo.util.APIResultHandler;
+import graph_routing_01.Finder.model.ApriPathDTO;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -36,6 +39,10 @@ public class testController {
     //
     public OAuthKakaoService oauthvertify;
     TourApiCallService tapi;
+
+
+    @Autowired
+    private PathFinderService pfs;
 
     public testController(SessionService sessionService, OAuthKakaoService oAuthKakaoService,
             TourApiCallService tourApiCallService) {
@@ -57,7 +64,7 @@ public class testController {
 
         if (!this.testingON)
             return ResponseEntity.noContent().build();
-        String authString = (String) authHeader.get("sessionId");
+        String authString = (String) authHeader.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();
 
@@ -71,7 +78,7 @@ public class testController {
             HttpServletRequest request) throws NoSessionFoundException {
         if (!this.testingON)
             return ResponseEntity.noContent().build();
-        String authString = (String) authHeader.get("sessionId");
+        String authString = (String) authHeader.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
 
         Long userId = userSession.getUserId();
@@ -165,6 +172,36 @@ public class testController {
         Long userId = (long) 1;
         UserSession session = sessionService.createSession(userId);
 
-        return ResponseEntity.status(HttpStatus.OK).body(Map.of("sessionId", session.getSessionId()));
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("sessionid", session.getSessionId()));
     }
+
+
+    @PostMapping("/test/findPath")
+    public ResponseEntity<?> postTest(@RequestHeader Map<String, Object> header,
+            @RequestBody Map<String,Object> reqBody,
+            HttpServletRequest request) {
+
+        // String authString = (String) header.get("sessionid");
+        // UserSession userSession = sessionService.validateSession(authString);
+        // Long userId = userSession.getUserId();
+
+        if (!this.testingON)
+            return ResponseEntity.noContent().build();
+
+        double stLon = Double.valueOf( (String) reqBody.get("stLon"));
+        double stLat = Double.valueOf( (String) reqBody.get("stLat"));
+        double endLon = Double.valueOf( (String) reqBody.get("endLon"));
+        double endLat = Double.valueOf( (String) reqBody.get("endLat"));
+        boolean checkTime = Boolean.valueOf( (String) reqBody.get("checkTime"));
+        LocalTime startTime = LocalTime.parse((String) reqBody.get("startTime"));
+        int dayNum = Integer.valueOf( (String) reqBody.get("dayNum"));
+
+        ApriPathDTO path = pfs.findPath(stLon,stLat,endLon,endLat,0.0,true,dayNum);
+
+        return ResponseEntity.ok(path);
+
+    }
+
+
+
 }

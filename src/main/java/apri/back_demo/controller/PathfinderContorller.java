@@ -30,7 +30,7 @@ public class PathfinderContorller {
             @RequestBody Map<String,Object> reqBody,
             HttpServletRequest request) {
 
-        String authString = (String) header.get("sessionId");
+        String authString = (String) header.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();
 

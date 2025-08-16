@@ -67,7 +67,7 @@ public class LoginController {
 
     @DeleteMapping("/auth/logout")
 public ResponseEntity<?> logout(@RequestHeader Map<String,Object> authHeader) {
-    String authString = (String) authHeader.get("sessionId");
+    String authString = (String) authHeader.get("sessionid");
     sessionService.deleteSession(authString);
     return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
 }

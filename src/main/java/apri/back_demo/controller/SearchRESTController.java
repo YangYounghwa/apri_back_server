@@ -37,7 +37,7 @@ public class SearchRESTController {
 
 
         APIResultHandler handler = new APIResultHandler();
-        String authString = (String) header.get("sessionId");
+        String authString = (String) header.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();
 
@@ -68,7 +68,7 @@ public class SearchRESTController {
     @PostMapping("/search/location")
     public ResponseEntity<?> searchLocation(@RequestHeader Map<String,Object> header, @RequestBody Map<String,Object> reqBody, HttpServletRequest request){
         APIResultHandler handler = new APIResultHandler();
-        String authString = (String) header.get("sessionId");
+        String authString = (String) header.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();
 

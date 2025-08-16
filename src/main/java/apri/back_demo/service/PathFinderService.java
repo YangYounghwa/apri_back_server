@@ -2,6 +2,7 @@ package apri.back_demo.service;
 
 import org.springframework.stereotype.Service;
 
+import apri.back_demo.exception.PathNotFoundException;
 import jakarta.annotation.PostConstruct;
 
 import graph_routing_01.Finder.ApriPathFinder;
@@ -12,6 +13,7 @@ import graph_routing_01.Finder.model.ApriPath;
 import graph_routing_01.Finder.model.ApriPathDTO;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -59,6 +61,8 @@ public class PathFinderService {
             File routeIntervalFile = Paths.get("data_folder", "route_interval_distance.csv").toFile();
             apf.addBusRouteEdges(routeIntervalFile);
 
+            // File saveAllEdgeFile = Paths.get("results","all_edges.shp").toFile();
+            // apf.saveAllEdgesToShp(saveAllEdgeFile);
                 
 
         } catch (ApriException | ResException e) {
@@ -86,11 +90,18 @@ public class PathFinderService {
     public ApriPathDTO findPath(double stLon, double stLat, double endLon, double endLat,double startTime,
     Boolean checkTime, int dayNum){
         ApriPath path = null;
+        System.out.println("Find path of "+stLon+" "+ stLat + " " + endLon + endLat + " ");
         try {
             path = this.apf.findPath(stLon,stLat,endLon,endLat,startTime,checkTime,dayNum);
         } catch (ApriException | ApriPathExLibError e) {
             // TODO Auto-generated catch block
+            System.err.println(e);
             e.printStackTrace();
+            return null;
+        }
+        if (path==null){
+
+            throw new PathNotFoundException("Path not found");
         }
         
         return new ApriPathDTO(path);

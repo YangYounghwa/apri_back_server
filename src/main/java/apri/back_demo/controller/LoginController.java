@@ -4,8 +4,8 @@ import apri.back_demo.model.LoginResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
 import apri.back_demo.service.SessionService;
+import apri.back_demo.dto.CheckUserDTO;
 import apri.back_demo.exception.KakaoResponseException;
-import apri.back_demo.model.CheckUserDTO;
 
 import java.util.Map;
 

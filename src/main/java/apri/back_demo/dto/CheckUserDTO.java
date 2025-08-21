@@ -1,4 +1,4 @@
-package apri.back_demo.model;
+package apri.back_demo.dto;
 
 public class CheckUserDTO {
     private boolean newRegister = false;

@@ -4,6 +4,7 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
+
 group = 'apri'
 version = '0.0.1-SNAPSHOT'
 
@@ -27,7 +28,11 @@ configurations {
 }
 
 repositories {
+	maven { url "https://repo.osgeo.org/repository/release/" }
 	mavenCentral()
+	mavenLocal()
+	
+	maven { url 'https://repository.jboss.org/nexus/content/repositories/thirdparty-releases/' } // ← JAI here
 }
 
 dependencies {
@@ -40,9 +45,9 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	runtimeOnly 'com.mysql:mysql-connector-j'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	
+	implementation 'apri:finderLib:1.0.2'
 
-	//Finder
-	implementation files('libs/finderLib-1.0.0.jar')
 }
 

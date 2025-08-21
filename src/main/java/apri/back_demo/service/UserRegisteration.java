@@ -27,7 +27,7 @@ public class UserRegisteration {
         // add necessary
     }
 
-    public boolean deleteUserByKakaoId(Long kakaoId) {
+    public boolean deleteUserByKakaoId(Long kakaoId) {              
         String sql = "DELETE FROM users where kakao_user_id = ?";
         return jdbcTemplate.update(sql, kakaoId) > 0;
     }
@@ -69,7 +69,7 @@ public class UserRegisteration {
         @Override
         public KakaoUser mapRow(ResultSet rs, int rowNum) throws SQLException {
             KakaoUser user = new KakaoUser();
-            user.setApriId(rs.getLong("apriID"));
+            user.setApri_id(rs.getLong("apri_id"));
             user.setKakao_user_id(rs.getLong("kakao_user_id"));
             user.setName(rs.getString("user_name"));
             user.setGender(rs.getString("gender"));

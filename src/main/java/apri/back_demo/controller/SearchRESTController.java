@@ -37,6 +37,8 @@ public class SearchRESTController {
 
 
         APIResultHandler handler = new APIResultHandler();
+
+        
         String authString = (String) header.get("sessionid");
         UserSession userSession = sessionService.validateSession(authString);
         Long userId = userSession.getUserId();

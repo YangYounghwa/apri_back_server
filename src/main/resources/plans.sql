@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS user_routes (
   end_point    POINT SRID 4326 NOT NULL,
   path         LINESTRING SRID 4326 NOT NULL,  -- Full combined path of ApriPathDTO
   distance_m   DOUBLE NULL,   -- Total distance
-  duration_s   INT NULL,  -- Total duration
+  duration_s   DOUBLE NULL,  -- Total duration
 
   details_json JSON NULL,
   segments_json JSON NULL,  -- ApriPathDTO object stored as a json.

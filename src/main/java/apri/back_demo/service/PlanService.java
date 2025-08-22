@@ -1,214 +1,367 @@
 package apri.back_demo.service;
 
+import apri.back_demo.dto.*;
+import graph_routing_01.Finder.model.ApriPathDTO;
+import lombok.Data;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-import apri.back_demo.model.plans.LocationDTO;
-import apri.back_demo.model.plans.RouteDTO;
-import apri.back_demo.util.GeoDtoConverter;
-
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-
-
-import graph_routing_01.Finder.model.ApriPathDTO;
-
-/**
- * JDBC-based service that:
- *  - Upserts per-user locations with TTL
- *  - Inserts routes from your existing ApriPathDTO (no library changes)
- *  - Reads routes back as ApriPathDTO via GeoDtoConverter
- *  - Purges expired user_locations/user_routes + dangling items
- *
- * Assumes the ephemeral schema we discussed earlier (user_locations, user_routes, etc.).
- * Make sure @EnableScheduling is present in your Spring Boot app.
- */
 @Service
 public class PlanService {
 
-    private final JdbcTemplate jdbc;
-    private final ObjectMapper om;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
-    public PlanService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
-        this.jdbc = jdbc;
-        this.om = objectMapper;
-    }
+    private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    /* =========================
-       Sources
-     ========================= */
-
+    /**
+     * Creates a new total plan and its associated daily plans.
+     * @param planDto DTO containing title, dates, and notes.
+     * @param apriId The ID of the user creating the plan.
+     * @return The created TotalPlanDto with generated IDs.
+     */
     @Transactional
-    public Long ensureSource(String sourceName) {
-        if (sourceName == null || sourceName.isBlank()) return null;
-        jdbc.update("""
-            INSERT INTO location_sources(name) VALUES (?)
-            ON DUPLICATE KEY UPDATE name=VALUES(name)
-        """, sourceName);
-        return jdbc.queryForObject("SELECT id FROM location_sources WHERE name=?", Long.class, sourceName);
-    }
+    public TotalPlanDto createTotalPlan(TotalPlanDto planDto, Long apriId) {
+        // Updated to include 'notes' and remove 'use_yn' (uses DEFAULT 'y')
+        String totalPlanSql = "INSERT INTO total_plans (apri_id, title, start_date, end_date, notes) VALUES (?, ?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-    /* =========================
-       Locations (TTL)
-     ========================= */
-
-    @Transactional
-    public long upsertUserLocation(LocationDTO dto) {
-        dto.validate();
-        Long sourceId = ensureSource(dto.getSourceName());
-
-        boolean hasPoint = dto.getLon() != null && dto.getLat() != null;
-        String pointExpr = hasPoint ? "ST_GeomFromText(?,4326)" : "NULL";
-        String detailsJson = toJsonOrNull(dto.getDetails());
-        int ttlDays = dto.getTtlDays() != null ? dto.getTtlDays() : 7;
-
-        jdbc.update(con -> {
-            String sql = """
-                INSERT INTO user_locations
-                  (user_id, source_id, external_id, name, address, point, details_json, expires_at)
-                VALUES (?, ?, ?, ?, ?, %s, ?, NOW() + INTERVAL ? DAY)
-                ON DUPLICATE KEY UPDATE
-                  name=VALUES(name),
-                  address=VALUES(address),
-                  point=VALUES(point),
-                  details_json=VALUES(details_json),
-                  expires_at=GREATEST(expires_at, VALUES(expires_at))
-            """.formatted(pointExpr);
-            PreparedStatement ps = con.prepareStatement(sql);
-            int i = 1;
-            ps.setLong(i++, dto.getUserId());
-            if (sourceId == null) ps.setNull(i++, Types.BIGINT); else ps.setLong(i++, sourceId);
-            if (dto.getExternalId() == null) ps.setNull(i++, Types.VARCHAR); else ps.setString(i++, dto.getExternalId());
-            if (dto.getName() == null) ps.setNull(i++, Types.VARCHAR); else ps.setString(i++, dto.getName());
-            if (dto.getAddress() == null) ps.setNull(i++, Types.VARCHAR); else ps.setString(i++, dto.getAddress());
-            if (hasPoint) ps.setString(i++, "POINT(" + dto.getLon() + " " + dto.getLat() + ")");
-            if (detailsJson == null) ps.setNull(i++, Types.LONGVARCHAR); else ps.setString(i++, detailsJson);
-            ps.setInt(i, ttlDays);
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(totalPlanSql, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, apriId);
+            ps.setString(2, planDto.getTitle());
+            ps.setObject(3, planDto.getStartDate());
+            ps.setObject(4, planDto.getEndDate());
+            ps.setString(5, planDto.getNotes()); // Set new notes field
             return ps;
-        });
+        }, keyHolder);
 
-        Long id = jdbc.queryForObject("""
-            SELECT id FROM user_locations
-             WHERE user_id=?
-               AND ((? IS NULL AND source_id IS NULL) OR source_id=?)
-               AND ((? IS NULL AND external_id IS NULL) OR external_id=?)
-        """, Long.class, dto.getUserId(), sourceId, sourceId, dto.getExternalId(), dto.getExternalId());
+        long totalPlanId = keyHolder.getKey().longValue();
+        planDto.setId(totalPlanId);
 
-        if (id == null) throw new IllegalStateException("Upsert user_location failed");
-        return id;
+        List<DailyPlanDto> createdDailyPlans = new ArrayList<>();
+        LocalDate currentDate = planDto.getStartDate();
+        int dayIndex = 1;
+        while (!currentDate.isAfter(planDto.getEndDate())) {
+            DailyPlanDto dailyPlan = createDailyPlan(totalPlanId, apriId, dayIndex, currentDate);
+            createdDailyPlans.add(dailyPlan);
+            currentDate = currentDate.plusDays(1);
+            dayIndex++;
+        }
+        planDto.setDailyPlans(createdDailyPlans);
+
+        return planDto;
     }
 
-    /* =========================
-       Routes (ApriPathDTO -> DB)
-     ========================= */
-
-    @Transactional
-    public long insertUserRoute(RouteDTO dto) {
-        dto.validate();
-
-        // Convert ApriPathDTO to WKT + derive start/end
-        String wktPath = GeoDtoConverter.toLineStringWkt(dto.getPath());
-        double[] a = GeoDtoConverter.startLonLat(dto.getPath());
-        double[] b = GeoDtoConverter.endLonLat(dto.getPath());
-
-        String detailsJson = toJsonOrNull(dto.getDetails());
-        int ttlDays = dto.getTtlDays() != null ? dto.getTtlDays() : 7;
-
-        KeyHolder kh = new GeneratedKeyHolder();
-        jdbc.update(con -> {
-            PreparedStatement ps = con.prepareStatement("""
-                INSERT INTO user_routes
-                  (user_id, name, start_point, end_point, path, distance_m, duration_s, details_json, expires_at)
-                VALUES (?, ?, ST_GeomFromText(?,4326), ST_GeomFromText(?,4326),
-                        ST_GeomFromText(?,4326), ?, ?, ?, NOW() + INTERVAL ? DAY)
-            """, Statement.RETURN_GENERATED_KEYS);
-            int i = 1;
-            ps.setLong(i++, dto.getUserId());
-            ps.setString(i++, dto.getName());
-            ps.setString(i++, "POINT(" + a[0] + " " + a[1] + ")");
-            ps.setString(i++, "POINT(" + b[0] + " " + b[1] + ")");
-            ps.setString(i++, wktPath);
-            if (dto.getDistanceMeters() == null) ps.setNull(i++, Types.DOUBLE); else ps.setDouble(i++, dto.getDistanceMeters());
-            if (dto.getDurationSeconds() == null) ps.setNull(i++, Types.INTEGER); else ps.setInt(i++, dto.getDurationSeconds());
-            if (detailsJson == null) ps.setNull(i++, Types.LONGVARCHAR); else ps.setString(i++, detailsJson);
-            ps.setInt(i, ttlDays);
+    private DailyPlanDto createDailyPlan(long totalPlanId, long apriId, int dayIndex, LocalDate date) {
+        String dailyPlanSql = "INSERT INTO daily_plans (total_plan_id, apri_id, day_index, date) VALUES (?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(dailyPlanSql, Statement.RETURN_GENERATED_KEYS);
+            ps.setLong(1, totalPlanId);
+            ps.setLong(2, apriId);
+            ps.setInt(3, dayIndex);
+            ps.setObject(4, date);
             return ps;
-        }, kh);
+        }, keyHolder);
 
-        var key = kh.getKey();
-        if (key == null) throw new IllegalStateException("Insert user_route failed");
-        return key.longValue();
+        DailyPlanDto dailyPlanDto = new DailyPlanDto();
+        dailyPlanDto.setId(keyHolder.getKey().longValue());
+        dailyPlanDto.setDayIndex(dayIndex);
+        dailyPlanDto.setDate(date);
+        dailyPlanDto.setItems(new ArrayList<>());
+        return dailyPlanDto;
     }
 
-    /* =========================
-       Routes (DB -> ApriPathDTO without changing your lib)
-     ========================= */
-
-    @Transactional(readOnly = true)
-    public ApriPathDTO getRouteAsApriPathDTO(long userId, long routeId) {
-        Map<String, Object> row = jdbc.queryForMap("""
-            SELECT ST_AsText(path) AS wkt, COALESCE(duration_s,0) AS duration_s
-            FROM user_routes
-            WHERE user_id=? AND id=?
-        """, userId, routeId);
-
-        String wkt = (String) row.get("wkt");
-        int durationSeconds = ((Number) row.get("duration_s")).intValue();
-
-        // Reconstruct DTO using your existing ApriPathDTO(ApriPath) constructor
-        return GeoDtoConverter.fromWkt(
-                wkt,
-                durationSeconds,   // feeding totalTime
-                null,              // optional roadName per segment
-                null               // optional roadType per segment
-        );
+    public TotalPlanDto getTotalPlanSimple(Long totalPlanId, Long apriId) {
+        return getPlan(totalPlanId, apriId, false);
     }
 
-    /* =========================
-       Scheduled purge of expired rows
-     ========================= */
+    public TotalPlanDto getTotalPlanFull(Long totalPlanId, Long apriId) {
+        return getPlan(totalPlanId, apriId, true);
+    }
+
+    /**
+     * Fetches a list of all plans for a given user (summary view).
+     * @param apriId The ID of the user.
+     * @return A list of TotalPlanSummaryDto.
+     */
+    public List<TotalPlanSummaryDto> getAllPlansForUser(Long apriId) {
+        // Updated to select the new 'notes' field
+        String sql = "SELECT id, title, start_date, end_date, notes FROM total_plans WHERE apri_id = ? AND use_yn = 'y' ORDER BY start_date DESC";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            TotalPlanSummaryDto summary = new TotalPlanSummaryDto();
+            summary.setId(rs.getLong("id"));
+            summary.setTitle(rs.getString("title"));
+            summary.setStartDate(rs.getObject("start_date", LocalDate.class));
+            summary.setEndDate(rs.getObject("end_date", LocalDate.class));
+            summary.setNotes(rs.getString("notes")); // Set new notes field
+            return summary;
+        }, apriId);
+    }
+
+    private TotalPlanDto getPlan(Long totalPlanId, Long apriId, boolean includeFullRoute) {
+        // 1. Fetch Total Plan info - Updated to select 'notes'
+        String totalPlanSql = "SELECT id, title, start_date, end_date, notes FROM total_plans WHERE id = ? AND apri_id = ?";
+        TotalPlanDto totalPlan = jdbcTemplate.queryForObject(totalPlanSql, (rs, rowNum) -> {
+            TotalPlanDto dto = new TotalPlanDto();
+            dto.setId(rs.getLong("id"));
+            dto.setTitle(rs.getString("title"));
+            dto.setStartDate(rs.getObject("start_date", LocalDate.class));
+            dto.setEndDate(rs.getObject("end_date", LocalDate.class));
+            dto.setNotes(rs.getString("notes")); // Set new notes field
+            return dto;
+        }, totalPlanId, apriId);
+
+        if (totalPlan == null) return null;
+
+        // 2. Fetch all daily plans and their items (this query remains the same)
+        // ... (The rest of this complex method is unchanged as it fetches daily/item details)
+        String itemsSql = """
+            SELECT
+                dp.id AS daily_plan_id, dp.day_index, dp.date,
+                dpi.id AS item_id, dpi.item_type, dpi.position, dpi.notes, dpi.start_time, dpi.end_time,
+                ul.id AS loc_id, ul.name AS loc_name, ul.address AS loc_address, ST_AsText(ul.point) AS loc_point,
+                ur.id AS route_id, ur.name AS route_name, ST_AsText(ur.start_point) AS route_start, ST_AsText(ur.end_point) AS route_end,
+                ST_AsText(ur.path) AS route_path, ur.distance_m, ur.duration_s, ur.segments_json
+            FROM daily_plans dp
+            LEFT JOIN daily_plan_items dpi ON dp.id = dpi.daily_plan_id
+            LEFT JOIN user_locations ul ON dpi.location_id = ul.id
+            LEFT JOIN user_routes ur ON dpi.route_id = ur.id
+            WHERE dp.total_plan_id = ? AND dp.apri_id = ?
+            ORDER BY dp.day_index, dpi.position
+        """;
+
+        List<PlanItemRow> rows = jdbcTemplate.query(itemsSql, new PlanItemRowMapper(), totalPlanId, apriId);
+
+        Map<Long, DailyPlanDto> dailyPlanMap = rows.stream()
+            .collect(Collectors.groupingBy(PlanItemRow::getDailyPlanId))
+            .entrySet().stream()
+            .map(entry -> {
+                PlanItemRow firstRow = entry.getValue().get(0);
+                DailyPlanDto dailyPlanDto = new DailyPlanDto();
+                dailyPlanDto.setId(firstRow.getDailyPlanId());
+                dailyPlanDto.setDayIndex(firstRow.getDayIndex());
+                dailyPlanDto.setDate(firstRow.getDate());
+                
+                List<PlanItemDto> items = entry.getValue().stream()
+                    .filter(row -> row.getItemId() != null)
+                    .map(row -> mapRowToPlanItemDto(row, includeFullRoute))
+                    .collect(Collectors.toList());
+                dailyPlanDto.setItems(items);
+                
+                return dailyPlanDto;
+            })
+            .collect(Collectors.toMap(DailyPlanDto::getId, dto -> dto));
+            
+        String allDailyPlansSql = "SELECT id, day_index, date FROM daily_plans WHERE total_plan_id = ?";
+        jdbcTemplate.query(allDailyPlansSql, (rs) -> {
+            long dailyPlanId = rs.getLong("id");
+            if (!dailyPlanMap.containsKey(dailyPlanId)) {
+                DailyPlanDto emptyDailyPlan = new DailyPlanDto();
+                emptyDailyPlan.setId(dailyPlanId);
+                emptyDailyPlan.setDayIndex(rs.getInt("day_index"));
+                emptyDailyPlan.setDate(rs.getObject("date", LocalDate.class));
+                emptyDailyPlan.setItems(new ArrayList<>());
+                dailyPlanMap.put(dailyPlanId, emptyDailyPlan);
+            }
+        }, totalPlanId);
+
+
+        totalPlan.setDailyPlans(new ArrayList<>(dailyPlanMap.values()));
+        totalPlan.getDailyPlans().sort((d1, d2) -> Integer.compare(d1.getDayIndex(), d2.getDayIndex()));
+        
+        return totalPlan;
+    }
+    
+    /**
+     * [NEW METHOD] Updates the title and notes of a total plan.
+     * @param totalPlanId The ID of the plan to update.
+     * @param apriId The ID of the user for authorization.
+     * @param title The new title.
+     * @param notes The new notes.
+     * @return true if the update was successful.
+     */
+    public boolean updateTotalPlanDetails(Long totalPlanId, Long apriId, String title, String notes) {
+        String sql = "UPDATE total_plans SET title = ?, notes = ? WHERE id = ? AND apri_id = ?";
+        return jdbcTemplate.update(sql, title, notes, totalPlanId, apriId) > 0;
+    }
 
     @Transactional
-    @Scheduled(cron = "0 30 3 * * *", zone = "Asia/Seoul")
-    public void purgeExpired() {
-        // Remove items referencing expired locations
-        jdbc.update("""
-            DELETE i FROM daily_plan_items i
-            JOIN user_locations l ON i.user_id=l.user_id AND i.location_id=l.id
-            WHERE l.expires_at < NOW()
-        """);
-        jdbc.update("DELETE FROM user_locations WHERE expires_at < NOW()");
+    public boolean updateDailyPlanItems(Long dailyPlanId, List<PlanItemDto> items, Long apriId) {
+        String checkOwnerSql = "SELECT COUNT(*) FROM daily_plans WHERE id = ? AND apri_id = ?";
+        Integer count = jdbcTemplate.queryForObject(checkOwnerSql, Integer.class, dailyPlanId, apriId);
+        if (count == null || count == 0) {
+            return false;
+        }
 
-        // Remove items referencing expired routes
-        jdbc.update("""
-            DELETE i FROM daily_plan_items i
-            JOIN user_routes r ON i.user_id=r.user_id AND i.route_id=r.id
-            WHERE r.expires_at < NOW()
-        """);
-        jdbc.update("DELETE FROM user_routes WHERE expires_at < NOW()");
+        String deleteSql = "DELETE FROM daily_plan_items WHERE daily_plan_id = ?";
+        jdbcTemplate.update(deleteSql, dailyPlanId);
+
+        String insertSql = "INSERT INTO daily_plan_items (apri_id, daily_plan_id, item_type, location_id, route_id, position, notes, start_time, end_time) " +
+                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        List<Object[]> batchArgs = items.stream()
+            .map(item -> new Object[]{
+                apriId,
+                dailyPlanId,
+                item.getItemType(),
+                "location".equals(item.getItemType()) ? item.getLocation().getId() : null,
+                "route".equals(item.getItemType()) ? item.getRoute().getId() : null,
+                item.getPosition(),
+                item.getNotes(),
+                item.getStartTime(),
+                item.getEndTime()
+            })
+            .collect(Collectors.toList());
+
+        jdbcTemplate.batchUpdate(insertSql, batchArgs);
+        return true;
+    }
+    
+    public boolean deleteTotalPlan(Long totalPlanId, Long apriId) {
+        String sql = "DELETE FROM total_plans WHERE id = ? AND apri_id = ?";
+        return jdbcTemplate.update(sql, totalPlanId, apriId) > 0;
     }
 
-    /* =========================
-       Utils
-     ========================= */
+    private PlanItemDto mapRowToPlanItemDto(PlanItemRow row, boolean includeFullRoute) {
+        // This method is unchanged
+        // ...
+        PlanItemDto item = new PlanItemDto();
+        item.setId(row.getItemId());
+        item.setItemType(row.getItemType());
+        item.setPosition(row.getPosition());
+        item.setNotes(row.getNotes());
+        item.setStartTime(row.getStartTime());
+        item.setEndTime(row.getEndTime());
 
-    private String toJsonOrNull(Object value) {
-        if (value == null) return null;
-        try {
-            if (value instanceof String s) return s;
-            return om.writeValueAsString(value);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid JSON payload", e);
+        if ("location".equals(row.getItemType())) {
+            LocationDto loc = new LocationDto();
+            loc.setId(row.getLocId());
+            loc.setName(row.getLocName());
+            loc.setAddress(row.getLocAddress());
+            loc.setPoint(parsePoint(row.getLocPoint()));
+            item.setLocation(loc);
+        } else if ("route".equals(row.getItemType())) {
+            RouteDto route = includeFullRoute ? new FullRouteDto() : new RouteDto();
+            route.setId(row.getRouteId());
+            route.setName(row.getRouteName());
+            route.setStartPoint(parsePoint(row.getRouteStart()));
+            route.setEndPoint(parsePoint(row.getRouteEnd()));
+            route.setPath(parseLineString(row.getRoutePath()));
+            route.setDistanceM(row.getDistanceM());
+            route.setDurationS(row.getDurationS());
+
+            if (includeFullRoute && row.getSegmentsJson() != null) {
+                try {
+                    ApriPathDTO segments = objectMapper.readValue(row.getSegmentsJson(), ApriPathDTO.class);
+                    ((FullRouteDto) route).setSegments(segments);
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+            }
+            item.setRoute(route);
+        }
+        return item;
+    }
+    
+    private PointDto parsePoint(String wkt) {
+        if (wkt == null || !wkt.startsWith("POINT")) return null;
+        String[] coords = wkt.replace("POINT(", "").replace(")", "").split(" ");
+        return new PointDto(Double.parseDouble(coords[1]), Double.parseDouble(coords[0]));
+    }
+
+    private List<PointDto> parseLineString(String wkt) {
+        if (wkt == null || !wkt.startsWith("LINESTRING")) return null;
+        String[] points = wkt.replace("LINESTRING(", "").replace(")", "").split(",");
+        List<PointDto> path = new ArrayList<>();
+        for (String pointStr : points) {
+            String[] coords = pointStr.trim().split(" ");
+            path.add(new PointDto(Double.parseDouble(coords[1]), Double.parseDouble(coords[0])));
+        }
+        return path;
+    }
+
+    @Data
+    private static class PlanItemRow {
+        private Long dailyPlanId;
+        private int dayIndex;
+        private LocalDate date;
+        private Long itemId;
+        private String itemType;
+        private int position;
+        private String notes;
+        private java.time.LocalDateTime startTime;
+        private java.time.LocalDateTime endTime;
+        private Long locId;
+        private String locName;
+        private String locAddress;
+        private String locPoint;
+        private Long routeId;
+        private String routeName;
+        private String routeStart;
+        private String routeEnd;
+        private String routePath;
+        private Double distanceM;
+        private Double durationS;
+        private String segmentsJson;
+    }
+
+    private static class PlanItemRowMapper implements RowMapper<PlanItemRow> {
+        @Override
+        public PlanItemRow mapRow(ResultSet rs, int rowNum) throws SQLException {
+            // This mapper is unchanged
+            // ...
+            PlanItemRow row = new PlanItemRow();
+            row.setDailyPlanId(rs.getLong("daily_plan_id"));
+            row.setDayIndex(rs.getInt("day_index"));
+            row.setDate(rs.getObject("date", LocalDate.class));
+            
+            row.setItemId(rs.getObject("item_id", Long.class));
+            if (row.getItemId() == null) {
+                return row;
+            }
+
+            row.setItemType(rs.getString("item_type"));
+            row.setPosition(rs.getInt("position"));
+            row.setNotes(rs.getString("notes"));
+            row.setStartTime(rs.getObject("start_time", java.time.LocalDateTime.class));
+            row.setEndTime(rs.getObject("end_time", java.time.LocalDateTime.class));
+            
+            row.setLocId(rs.getObject("loc_id", Long.class));
+            row.setLocName(rs.getString("loc_name"));
+            row.setLocAddress(rs.getString("loc_address"));
+            row.setLocPoint(rs.getString("loc_point"));
+
+            row.setRouteId(rs.getObject("route_id", Long.class));
+            row.setRouteName(rs.getString("route_name"));
+            row.setRouteStart(rs.getString("route_start"));
+            row.setRouteEnd(rs.getString("route_end"));
+            row.setRoutePath(rs.getString("route_path"));
+            row.setDistanceM(rs.getObject("distance_m", Double.class));
+            row.setDurationS(rs.getObject("duration_s", Double.class));
+            row.setSegmentsJson(rs.getString("segments_json"));
+            
+            return row;
         }
     }
 }

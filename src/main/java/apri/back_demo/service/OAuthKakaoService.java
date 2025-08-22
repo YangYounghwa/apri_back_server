@@ -12,8 +12,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import apri.back_demo.dto.CheckUserDTO;
 import apri.back_demo.exception.KakaoResponseException;
-import apri.back_demo.model.CheckUserDTO;
 import apri.back_demo.model.KakaoUser;
 
 @Service
@@ -59,6 +59,7 @@ public class OAuthKakaoService {
             request, 
             Map.class
         );
+        System.out.println("Kaoako verify :");
         System.out.println(response.toString());
         Map<String, Object> body = response.getBody();
         if (body == null || !body.containsKey("id")){

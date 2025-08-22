@@ -5,18 +5,20 @@ import org.springframework.stereotype.Service;
 import apri.back_demo.exception.PathNotFoundException;
 import jakarta.annotation.PostConstruct;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+
 import graph_routing_01.Finder.ApriPathFinder;
 import graph_routing_01.Finder.exceptions.ApriException;
 import graph_routing_01.Finder.exceptions.ApriPathExLibError;
 import graph_routing_01.Finder.exceptions.ResException;
 import graph_routing_01.Finder.model.ApriPath;
 import graph_routing_01.Finder.model.ApriPathDTO;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import graph_routing_01.Finder.util.ApriPathMapper;
 
 @Service
 public class PathFinderService {
@@ -61,10 +63,17 @@ public class PathFinderService {
             File routeIntervalFile = Paths.get("data_folder", "route_interval_distance.csv").toFile();
             apf.addBusRouteEdges(routeIntervalFile);
 
-            // File saveAllEdgeFile = Paths.get("results","all_edges.shp").toFile();
-            // apf.saveAllEdgesToShp(saveAllEdgeFile);
-                
 
+            File saveAllEdgeFile = Paths.get("results","all_edges.shp").toFile();
+            try {
+                apf.saveAllEdgesToShp(saveAllEdgeFile);
+                System.err.println("Edge Saved  : " + saveAllEdgeFile.getAbsolutePath());
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+                
+//asdf
         } catch (ApriException | ResException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -103,8 +112,12 @@ public class PathFinderService {
 
             throw new PathNotFoundException("Path not found");
         }
+
+
+        // Path to DTO using ApriPathMapper.
+        ApriPathDTO pathDTO = ApriPathMapper.toDTO(path);
         
-        return new ApriPathDTO(path);
+        return pathDTO;
     }
     
 

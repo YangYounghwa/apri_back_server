@@ -1,0 +1,215 @@
+package apri.back_demo.controller;
+
+
+// TODO List 
+// 1. Fix login process. From session we need to get apri_id, maybe add apri_id in the UserSession.java  or add a column to the session table. (this willbefaster)
+// 2. Change ALL Request and responses. 
+//      - Sessions should be in the body.
+//      - Responses in same format. (and edit the Exception handler as well)
+//      - Finish this file.
+
+import apri.back_demo.dto.*;
+import apri.back_demo.dto.request.ApiRequest;
+import apri.back_demo.dto.request.AuthDto;
+import apri.back_demo.dto.request.data.*;
+import apri.back_demo.dto.response.ApiResponse;
+import apri.back_demo.model.UserSession;
+import apri.back_demo.service.PlanService;
+import apri.back_demo.service.SessionService;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/plans")
+public class PlanController {
+
+    @Autowired
+    private PlanService planService;
+
+    @Autowired
+    SessionService sessionService;
+
+    /**
+     * Creates a new total travel plan for a user.
+     * POST /api/plans/create
+     * Body: { "auth": { "apriId": 123 }, "data": { "title": "...", "startDate": "...", ... } }
+     */
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponse<TotalPlanDto>> createPlan(@RequestBody ApiRequest<CreatePlanData> req) {
+
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+
+        CreatePlanData data =  req.getData();
+
+        TotalPlanDto planDto = new TotalPlanDto();
+        planDto.setTitle(data.getTitle());
+        planDto.setStartDate(data.getStartDate());
+        planDto.setEndDate(data.getEndDate());
+        planDto.setNotes(data.getNotes());
+
+        TotalPlanDto createdPlan = planService.createTotalPlan(planDto, apriId);
+        return new ResponseEntity<>(ApiResponse.success(createdPlan), HttpStatus.CREATED);
+    }
+
+    /**
+     * Gets a list of all plan summaries for a specific user.
+     * POST /api/plans/list
+     * Body: { "auth": { "apriId": 123 }, "data": {} }
+     */
+    @PostMapping("/list")
+    public ResponseEntity<ApiResponse<List<TotalPlanSummaryDto>>> getAllUserPlans(@RequestBody ApiRequest<Void> req) {
+
+                // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+        List<TotalPlanSummaryDto> plans = planService.getAllPlansForUser(apriId);
+        return ResponseEntity.ok(ApiResponse.success(plans));
+    }
+
+    /**
+     * Gets a "simple" view of a specific plan.
+     * POST /api/plans/get-simple
+     * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
+     */
+    @PostMapping("/get-simple")
+    public ResponseEntity<ApiResponse<TotalPlanDto>> getSimplePlan(@RequestBody ApiRequest<PlanIdData> req) {
+
+
+        
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        Long planId = req.getData().getPlanId();
+
+        TotalPlanDto plan = planService.getTotalPlanSimple(planId, apriId);
+        if (plan != null) {
+            return ResponseEntity.ok(ApiResponse.success(plan));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Plan not found or you do not have permission."));
+        }
+    }
+
+    /**
+     * Gets a "full" detailed view of a specific plan.
+     * POST /api/plans/get-full
+     * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
+     */
+    @PostMapping("/get-full")
+    public ResponseEntity<ApiResponse<TotalPlanDto>> getFullPlan(@RequestBody ApiRequest<PlanIdData> req) {
+
+
+                // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        Long planId = req.getData().getPlanId();
+
+        TotalPlanDto plan = planService.getTotalPlanFull(planId, apriId);
+        if (plan != null) {
+            return ResponseEntity.ok(ApiResponse.success(plan));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Plan not found or you do not have permission."));
+        }
+    }
+
+    /**
+     * Updates the title and notes of a total plan.
+     * POST /api/plans/update-details
+     * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1, "title": "...", "notes": "..." } }
+     */
+    @PostMapping("/update-details")
+    public ResponseEntity<ApiResponse<String>> updatePlanDetails(@RequestBody ApiRequest<UpdatePlanDetailsData> req) {
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+        UpdatePlanDetailsData data = req.getData();
+
+        boolean success = planService.updateTotalPlanDetails(data.getPlanId(), apriId, data.getTitle(), data.getNotes());
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("Plan details updated successfully."));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Plan not found or you do not have permission to update."));
+        }
+    }
+
+    /**
+     * Updates all items for a specific daily plan. This is a full replacement.
+     * POST /api/plans/update-daily-items
+     * Body: { "auth": { "apriId": 123 }, "data": { "dailyPlanId": 10, "items": [...] } }
+     */
+    @PostMapping("/update-daily-items")
+    public ResponseEntity<ApiResponse<String>> updateDailyPlan(@RequestBody ApiRequest<UpdateDailyPlanItemsData> req) {
+
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        UpdateDailyPlanItemsData data = req.getData();
+        
+        // The items list can be null or empty if the user wants to clear the day
+        List<PlanItemDto> items = data.getItems() != null ? data.getItems() : List.of();
+
+        boolean success = planService.updateDailyPlanItems(data.getDailyPlanId(), items, apriId);
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("Daily plan updated successfully."));
+        } else {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Daily plan not found or you do not have permission to update."));
+        }
+    }
+
+    /**
+     * Deletes a total plan and all its associated data.
+     * POST /api/plans/delete
+     * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
+     */
+    @PostMapping("/delete")
+    public ResponseEntity<ApiResponse<String>> deletePlan(@RequestBody ApiRequest<PlanIdData> req) {
+
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+        Long planId = req.getData().getPlanId();
+
+        boolean success = planService.deleteTotalPlan(planId, apriId);
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("Plan deleted successfully."));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Plan not found or you do not have permission to delete."));
+        }
+    }
+}

@@ -5,8 +5,34 @@ import java.time.LocalDateTime;
 
 
 
+/**
+ * Represents a user authenticated via Kakao.
+ * Stores user information such as Kakao user ID, name, gender, birth year, profile thumbnail URL, and nickname.
+ * Also contains application-specific ID and registration timestamp.
+ *
+ * <p>
+ * Example usage:
+ * <pre>
+ *     KakaoUser user = new KakaoUser(12345L, "John Doe", "Male", 1990, "http://example.com/thumb.jpg", "johnny");
+ * </pre>
+ * </p>
+ *  
+ * Fields:
+ * <ul>
+ *   <li>apri_id: Application-specific user ID (nullable)</li>
+ *   <li>kakao_user_id: Unique Kakao user ID</li>
+ *   <li>name: User's name</li>
+ *   <li>gender: User's gender ("male" or "Female")</li>
+ *   <li>birth_year: User's birth year</li>
+ *   <li>registration_timestamp: Timestamp of registration (nullable)</li>
+ *   <li>thumbnail_url: URL to user's profile thumbnail</li>
+ *   <li>nickname: User's nickname</li>
+ * </ul>
+ *
+ * Provides constructors, getters, and setters for all fields.
+ */
 public class KakaoUser {
-    private Long apriId=null;
+    private Long apri_id=null;
     private Long kakao_user_id;
     private String name;
     private String gender;//male or Female
@@ -29,11 +55,11 @@ public class KakaoUser {
         this.nickname=nickname;
     }
     
-    public Long getApriId() {
-        return apriId;
+    public Long getApri_id() {
+        return apri_id;
     }
-    public void setApriId(Long apriId) {
-        this.apriId = apriId;
+    public void setApri_id(Long apriId) {
+        this.apri_id = apriId;
     }
     public Long getKakao_user_id() {
         return kakao_user_id;

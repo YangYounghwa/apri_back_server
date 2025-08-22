@@ -1,11 +1,12 @@
 package apri.back_demo.controller;
 
-import apri.back_demo.model.LoginResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
 import apri.back_demo.service.SessionService;
+import apri.back_demo.dto.CheckUserDTO;
+import apri.back_demo.dto.request.LoginRequest;
+import apri.back_demo.dto.response.LoginResponse;
 import apri.back_demo.exception.KakaoResponseException;
-import apri.back_demo.model.CheckUserDTO;
 
 import java.util.Map;
 
@@ -36,26 +37,29 @@ public class LoginController {
     }
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@RequestBody Map<String,Object> reqBody,HttpServletRequest request){
+    public ResponseEntity<?> login(@RequestBody LoginRequest req,HttpServletRequest request){
 
-        Long userId=null;
+        Map<String,Object> reqData = (Map<String, Object>) req;
+        Long kakao_id=null;
+        Long apri_id=null;
         CheckUserDTO CUD;
         try {
-            String token = (String) reqBody.get("ACCESS_TOKEN");
-            if(testString.equals("true") || testString.equals("True")) System.err.println("reqBody : " + reqBody.toString());
+            String token = (String) reqData.get("ACCESS_TOKEN");
+            if(testString.equals("true") || testString.equals("True")) System.err.println("reqBody : " + reqData.toString());
             CUD = oauthvertify.checkUser(token);
-            userId = CUD.getKakao_id();
+            kakao_id = CUD.getKakao_id();
+            apri_id= CUD.getApri_id();
         } catch (KakaoResponseException e){
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("KakaoLoginFail");
         }
-        if (userId == null)
+        if (kakao_id == null)
         {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("KakaoLoginFail");
         }
         //create session
-        UserSession session = sessionService.createSession(userId);
-        LoginResponse response = new LoginResponse("ok", userId, session.getSessionId());
+        UserSession session = sessionService.createSession(kakao_id,apri_id);
+        LoginResponse response = new LoginResponse("ok", kakao_id, session.getSessionId());
         response.setNewRegister(CUD.isNewRegister()); 
         return ResponseEntity.status(HttpStatus.OK).body(response);
        // every further api call should have

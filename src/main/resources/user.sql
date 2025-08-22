@@ -1,5 +1,5 @@
 CREATE TABLE users (
-    apriID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    apri_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     kakao_user_id BIGINT UNIQUE, 
     user_name VARCHAR(100),
     gender VARCHAR(10),

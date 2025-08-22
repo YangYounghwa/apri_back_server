@@ -14,8 +14,10 @@ import org.springframework.stereotype.Service;
 import apri.back_demo.exception.NoSessionFoundException;
 import apri.back_demo.model.UserSession;
 
-/*
- *  Checks sessionId
+
+
+/**
+ *  Checks sessionId, 
  */
 @Service
 public class SessionService {
@@ -23,20 +25,34 @@ public class SessionService {
     @Autowired
     private JdbcTemplate jdbc;
 
-    public UserSession createSession(Long userId) {
+
+    /**
+     * 
+     * @param userId
+     * @param apriId
+     * @return
+     */
+    public UserSession createSession(Long userId,Long apriId) {
         String sessionId = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(1);
 
         jdbc.update("""
-                INSERT INTO sessions (session_id, user_id, expires_at)
-                VALUES (?,?,?)
+                INSERT INTO sessions (session_id, user_id, expires_at,apri_id)
+                VALUES (?,?,?,?)
 
-                    """, sessionId, userId, Timestamp.valueOf(expiresAt));
+                    """, sessionId, userId, Timestamp.valueOf(expiresAt),apriId);
 
-        UserSession session = new UserSession(sessionId, userId, expiresAt);
+        UserSession session = new UserSession(sessionId, userId, expiresAt,apriId);
         return session;
     }
 
+
+    /**
+     * validates session UUID
+     * @param authString
+     * @return
+     * @throws NoSessionFoundException
+     */
     public UserSession validateSession(String authString) throws NoSessionFoundException {
 
         if (authString == null || !authString.startsWith("Session ")) {
@@ -48,13 +64,14 @@ public class SessionService {
         String sessionId = authString.substring(8).trim();
         try {
             UserSession session = jdbc.queryForObject("""
-                    SELECT session_id, user_id, expires_at
+                    SELECT session_id, user_id, expires_at, apri_id
                     FROM sessions
                     WHERE session_id = ? AND expires_at > NOW()
                         """, (rs, rowNum) -> new UserSession(
                     rs.getString("session_id"),
                     rs.getLong("user_id"),
-                    rs.getTimestamp("expires_at").toLocalDateTime()), sessionId);
+                    rs.getTimestamp("expires_at").toLocalDateTime(),
+                    rs.getLong("apri_id")), sessionId);
             
                     
             LocalDateTime expire1 = LocalDateTime.now().plusHours(1);

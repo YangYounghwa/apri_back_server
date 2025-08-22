@@ -1,5 +1,8 @@
 package apri.back_demo.dto;
 
+import lombok.Data;
+
+@Data
 public class CheckUserDTO {
     private boolean newRegister = false;
 
@@ -7,6 +10,7 @@ public class CheckUserDTO {
 
     private Long kakao_id;
     private boolean authY = false;
+    private Long apri_id = null;
 
 
     public CheckUserDTO(boolean newReg, boolean authY, Long kakao_id){

@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
+import apri.back_demo.dto.request.ApiRequest;
+import apri.back_demo.dto.request.AuthDto;
+import apri.back_demo.dto.response.LoginResponse;
 import apri.back_demo.exception.KakaoResponseException;
 import apri.back_demo.exception.NoSessionFoundException;
 import apri.back_demo.exception.TourAPIVKError;
-import apri.back_demo.model.LoginResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
 import apri.back_demo.service.PathFinderService;
@@ -60,32 +62,27 @@ public class testController {
 
     @PostMapping("/test/AuthPOST")
     public ResponseEntity<?> postTestProfile(@RequestHeader Map<String, Object> authHeader,
-            @RequestBody String testBody, HttpServletRequest request) {
+            @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request) {
 
         if (!this.testingON)
             return ResponseEntity.noContent().build();
-        String authString = (String) authHeader.get("sessionid");
+
+
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
         UserSession userSession = sessionService.validateSession(authString);
-        Long userId = userSession.getUserId();
+        Long ApriId = userSession.getApri_id();
+
 
         return ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of("sessionId", userSession.getSessionId(), "userId", userId));
+                .body(Map.of("sessionId", userSession.getSessionId(), "userId", ApriId));
 
     }
 
-    @GetMapping("/test/AuthHGET")
-    public ResponseEntity<?> getTestProfile(@RequestHeader Map<String, Object> authHeader,
-            HttpServletRequest request) throws NoSessionFoundException {
-        if (!this.testingON)
-            return ResponseEntity.noContent().build();
-        String authString = (String) authHeader.get("sessionid");
-        UserSession userSession = sessionService.validateSession(authString);
 
-        Long userId = userSession.getUserId();
-
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(Map.of("sessionId", userSession.getSessionId(), "userId", userId));
-    }
 
     @PostMapping("/test/POST")
     public ResponseEntity<?> postTest(@RequestHeader Map<String, Object> authHeader,
@@ -110,16 +107,25 @@ public class testController {
 
     @PostMapping("/test/tourapi/keyword")
     public ResponseEntity<?> testSearchKeyword(@RequestHeader Map<String, Object> header,
-            @RequestBody Map<String, Object> reqBody, HttpServletRequest request) {
+            @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request) {
 
         if (!this.testingON)
             return ResponseEntity.noContent().build();
 
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        // AuthDto auth = req.getAuth();
+        // String authString = (String) auth.getSessionId();
+        // UserSession userSession = sessionService.validateSession(authString);
+        // Long ApriId = userSession.getApri_id();
+
+
         APIResultHandler handler = new APIResultHandler();
-        String searchWord = (String) reqBody.get("SearchKeyword");
-        String cat1 = (String) reqBody.get("cat1");
-        String cat2 = (String) reqBody.get("cat2");
-        String cat3 = (String) reqBody.get("cat3");
+        String searchWord = (String) reqData.get("SearchKeyword");
+        String cat1 = (String) reqData.get("cat1");
+        String cat2 = (String) reqData.get("cat2");
+        String cat3 = (String) reqData.get("cat3");
 
         // TODO : Adjust areacode, sigunguCode to Incheon.
         String msg = null;
@@ -141,13 +147,16 @@ public class testController {
 
     @PostMapping("/test/tourapi/location")
     public ResponseEntity<?> testSearchLocation(@RequestHeader Map<String, Object> header,
-            @RequestBody Map<String, Object> reqBody, HttpServletRequest request) {
+            @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request) {
         if (!this.testingON)
             return ResponseEntity.noContent().build();
+
+
+        Map<String,Object> reqData = req.getData();
         APIResultHandler handler = new APIResultHandler();
 
-        String posXString = (String) reqBody.get("posX");
-        String posYString = (String) reqBody.get("posY");
+        String posXString = (String) reqData.get("posX");
+        String posYString = (String) reqData.get("posY");
 
         double posX = Double.valueOf(posXString);
         double posY = Double.valueOf(posYString);
@@ -170,7 +179,8 @@ public class testController {
         if (!this.testingON)
             return ResponseEntity.noContent().build();
         Long userId = (long) 1;
-        UserSession session = sessionService.createSession(userId);
+        Long apri_id = (long) 1;
+        UserSession session = sessionService.createSession(userId, apri_id);
 
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("sessionid", session.getSessionId()));
     }
@@ -178,23 +188,22 @@ public class testController {
 
     @PostMapping("/test/findPath")
     public ResponseEntity<?> postTest(@RequestHeader Map<String, Object> header,
-            @RequestBody Map<String,Object> reqBody,
+            @RequestBody ApiRequest<Map<String, Object>> req,
             HttpServletRequest request) {
 
-        // String authString = (String) header.get("sessionid");
-        // UserSession userSession = sessionService.validateSession(authString);
-        // Long userId = userSession.getUserId();
 
+
+        Map<String,Object> reqData = req.getData();
         if (!this.testingON)
             return ResponseEntity.noContent().build();
 
-        double stLon = Double.valueOf( (String) reqBody.get("stLon"));
-        double stLat = Double.valueOf( (String) reqBody.get("stLat"));
-        double endLon = Double.valueOf( (String) reqBody.get("endLon"));
-        double endLat = Double.valueOf( (String) reqBody.get("endLat"));
-        boolean checkTime = Boolean.valueOf( (String) reqBody.get("checkTime"));
-        LocalTime startTime = LocalTime.parse((String) reqBody.get("startTime"));
-        int dayNum = Integer.valueOf( (String) reqBody.get("dayNum"));
+        double stLon = Double.valueOf( (String) reqData.get("stLon"));
+        double stLat = Double.valueOf( (String) reqData.get("stLat"));
+        double endLon = Double.valueOf( (String) reqData.get("endLon"));
+        double endLat = Double.valueOf( (String) reqData.get("endLat"));
+        boolean checkTime = Boolean.valueOf( (String) reqData.get("checkTime"));
+        LocalTime startTime = LocalTime.parse((String) reqData.get("startTime"));
+        int dayNum = Integer.valueOf( (String) reqData.get("dayNum"));
 
         ApriPathDTO path = pfs.findPath(stLon,stLat,endLon,endLat,0.0,true,dayNum);
 

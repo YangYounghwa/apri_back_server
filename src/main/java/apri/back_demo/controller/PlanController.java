@@ -10,15 +10,20 @@ package apri.back_demo.controller;
 
 import apri.back_demo.dto.*;
 import apri.back_demo.dto.request.ApiRequest;
+import apri.back_demo.dto.request.AuthDto;
 import apri.back_demo.dto.request.data.*;
 import apri.back_demo.dto.response.ApiResponse;
+import apri.back_demo.model.UserSession;
 import apri.back_demo.service.PlanService;
+import apri.back_demo.service.SessionService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/plans")
@@ -27,24 +32,27 @@ public class PlanController {
     @Autowired
     private PlanService planService;
 
+    @Autowired
+    SessionService sessionService;
+
     /**
      * Creates a new total travel plan for a user.
      * POST /api/plans/create
      * Body: { "auth": { "apriId": 123 }, "data": { "title": "...", "startDate": "...", ... } }
      */
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<TotalPlanDto>> createPlan(@RequestBody ApiRequest<CreatePlanData> request) {
-        // --- Validation ---
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getTitle() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Plan title is required."));
-        }
-        // --- End Validation ---
+    public ResponseEntity<ApiResponse<TotalPlanDto>> createPlan(@RequestBody ApiRequest<CreatePlanData> req) {
 
-        Long apriId = request.getAuth().getApriId();
-        CreatePlanData data = request.getData();
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+
+        CreatePlanData data =  req.getData();
 
         TotalPlanDto planDto = new TotalPlanDto();
         planDto.setTitle(data.getTitle());
@@ -62,11 +70,15 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": {} }
      */
     @PostMapping("/list")
-    public ResponseEntity<ApiResponse<List<TotalPlanSummaryDto>>> getAllUserPlans(@RequestBody ApiRequest<Void> request) {
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        Long apriId = request.getAuth().getApriId();
+    public ResponseEntity<ApiResponse<List<TotalPlanSummaryDto>>> getAllUserPlans(@RequestBody ApiRequest<Void> req) {
+
+                // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
         List<TotalPlanSummaryDto> plans = planService.getAllPlansForUser(apriId);
         return ResponseEntity.ok(ApiResponse.success(plans));
     }
@@ -77,16 +89,17 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
      */
     @PostMapping("/get-simple")
-    public ResponseEntity<ApiResponse<TotalPlanDto>> getSimplePlan(@RequestBody ApiRequest<PlanIdData> request) {
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getPlanId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("planId is required."));
-        }
+    public ResponseEntity<ApiResponse<TotalPlanDto>> getSimplePlan(@RequestBody ApiRequest<PlanIdData> req) {
+
+
         
-        Long apriId = request.getAuth().getApriId();
-        Long planId = request.getData().getPlanId();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        Long planId = req.getData().getPlanId();
 
         TotalPlanDto plan = planService.getTotalPlanSimple(planId, apriId);
         if (plan != null) {
@@ -102,16 +115,16 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
      */
     @PostMapping("/get-full")
-    public ResponseEntity<ApiResponse<TotalPlanDto>> getFullPlan(@RequestBody ApiRequest<PlanIdData> request) {
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getPlanId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("planId is required."));
-        }
+    public ResponseEntity<ApiResponse<TotalPlanDto>> getFullPlan(@RequestBody ApiRequest<PlanIdData> req) {
 
-        Long apriId = request.getAuth().getApriId();
-        Long planId = request.getData().getPlanId();
+
+                // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        Long planId = req.getData().getPlanId();
 
         TotalPlanDto plan = planService.getTotalPlanFull(planId, apriId);
         if (plan != null) {
@@ -127,16 +140,16 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1, "title": "...", "notes": "..." } }
      */
     @PostMapping("/update-details")
-    public ResponseEntity<ApiResponse<String>> updatePlanDetails(@RequestBody ApiRequest<UpdatePlanDetailsData> request) {
-         if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getPlanId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("planId is required."));
-        }
+    public ResponseEntity<ApiResponse<String>> updatePlanDetails(@RequestBody ApiRequest<UpdatePlanDetailsData> req) {
 
-        Long apriId = request.getAuth().getApriId();
-        UpdatePlanDetailsData data = request.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+        UpdatePlanDetailsData data = req.getData();
 
         boolean success = planService.updateTotalPlanDetails(data.getPlanId(), apriId, data.getTitle(), data.getNotes());
         if (success) {
@@ -152,16 +165,16 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": { "dailyPlanId": 10, "items": [...] } }
      */
     @PostMapping("/update-daily-items")
-    public ResponseEntity<ApiResponse<String>> updateDailyPlan(@RequestBody ApiRequest<UpdateDailyPlanItemsData> request) {
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getDailyPlanId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("dailyPlanId is required."));
-        }
+    public ResponseEntity<ApiResponse<String>> updateDailyPlan(@RequestBody ApiRequest<UpdateDailyPlanItemsData> req) {
 
-        Long apriId = request.getAuth().getApriId();
-        UpdateDailyPlanItemsData data = request.getData();
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+        UpdateDailyPlanItemsData data = req.getData();
         
         // The items list can be null or empty if the user wants to clear the day
         List<PlanItemDto> items = data.getItems() != null ? data.getItems() : List.of();
@@ -180,16 +193,17 @@ public class PlanController {
      * Body: { "auth": { "apriId": 123 }, "data": { "planId": 1 } }
      */
     @PostMapping("/delete")
-    public ResponseEntity<ApiResponse<String>> deletePlan(@RequestBody ApiRequest<PlanIdData> request) {
-        if (request == null || request.getAuth() == null || request.getAuth().getApriId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Authentication information is missing."));
-        }
-        if (request.getData() == null || request.getData().getPlanId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("planId is required."));
-        }
+    public ResponseEntity<ApiResponse<String>> deletePlan(@RequestBody ApiRequest<PlanIdData> req) {
 
-        Long apriId = request.getAuth().getApriId();
-        Long planId = request.getData().getPlanId();
+
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long apriId = userSession.getApri_id();
+
+        Long planId = req.getData().getPlanId();
 
         boolean success = planService.deleteTotalPlan(planId, apriId);
         if (success) {

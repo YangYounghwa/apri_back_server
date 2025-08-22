@@ -65,6 +65,19 @@ public class UserRegisteration {
         }
     }
 
+    // findByKakaoUserId have apri_id 
+    public Long getApri_idByKakaoUserId(Long kakaoUserId){
+        String sql = "SELECT apri_id FROM users WHERE kakao_user_id = ?";
+        try {
+
+            return jdbcTemplate.queryForObject(sql,Long.class,kakaoUserId, null);
+
+        } catch (EmptyResultDataAccessException e){
+            return null;
+        }
+
+    }
+
     private static class KakaoUserRowMapper implements RowMapper<KakaoUser> {
         @Override
         public KakaoUser mapRow(ResultSet rs, int rowNum) throws SQLException {

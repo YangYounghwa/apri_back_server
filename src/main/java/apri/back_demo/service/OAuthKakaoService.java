@@ -59,6 +59,7 @@ public class OAuthKakaoService {
             request, 
             Map.class
         );
+        System.out.println("Kaoako verify :");
         System.out.println(response.toString());
         Map<String, Object> body = response.getBody();
         if (body == null || !body.containsKey("id")){

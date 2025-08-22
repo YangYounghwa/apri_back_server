@@ -4,19 +4,28 @@ import java.time.LocalDateTime;
 
 public class UserSession {
     private String sessionId;
-    private Long userId;
+    private Long kakao_id;
     private LocalDateTime expiresAt;
+    private Long apri_id;
     
     public UserSession(String sessionId, Long userId, LocalDateTime expiresAt){
         this.sessionId = sessionId;
-        this.userId = userId;
+        this.kakao_id = userId;
         this.expiresAt = expiresAt;
     }
 
-    public String getSessionId(){ return sessionId; }
-    public Long getUserId(){ return userId; }
-    public LocalDateTime getExpiresAt(){ return expiresAt;};
 
+        public UserSession(String sessionId, Long userId, LocalDateTime expiresAt,Long apriId){
+        this.sessionId = sessionId;
+        this.kakao_id = userId;
+        this.expiresAt = expiresAt;
+        this.apri_id = apriId;
+    }
+
+    public String getSessionId(){ return sessionId; }
+    public Long getKakao_id(){ return kakao_id; }
+    public LocalDateTime getExpiresAt(){ return expiresAt;};
+    public Long getApri_id(){return apri_id;};
 }
 /*
  *  CREATE TABLE sessions (

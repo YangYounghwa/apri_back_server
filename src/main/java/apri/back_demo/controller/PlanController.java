@@ -2,11 +2,8 @@ package apri.back_demo.controller;
 
 
 // TODO List 
-// 1. Fix login process. From session we need to get apri_id, maybe add apri_id in the UserSession.java  or add a column to the session table. (this willbefaster)
-// 2. Change ALL Request and responses. 
-//      - Sessions should be in the body.
-//      - Responses in same format. (and edit the Exception handler as well)
-//      - Finish this file.
+// Change all the responses and the api page on notion.
+
 
 import apri.back_demo.dto.*;
 import apri.back_demo.dto.request.ApiRequest;

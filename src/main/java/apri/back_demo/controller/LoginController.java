@@ -4,6 +4,8 @@ import apri.back_demo.model.UserSession;
 import apri.back_demo.service.OAuthKakaoService;
 import apri.back_demo.service.SessionService;
 import apri.back_demo.dto.CheckUserDTO;
+import apri.back_demo.dto.request.ApiRequest;
+import apri.back_demo.dto.request.AuthDto;
 import apri.back_demo.dto.request.LoginRequest;
 import apri.back_demo.dto.response.LoginResponse;
 import apri.back_demo.exception.KakaoResponseException;
@@ -70,8 +72,12 @@ public class LoginController {
     }
 
     @DeleteMapping("/auth/logout")
-public ResponseEntity<?> logout(@RequestHeader Map<String,Object> authHeader) {
-    String authString = (String) authHeader.get("sessionid");
+public ResponseEntity<?> logout(@RequestBody ApiRequest<Map<String, Object>> req) {
+
+     AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long ApriId = userSession.getApri_id();
     sessionService.deleteSession(authString);
     return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
 }

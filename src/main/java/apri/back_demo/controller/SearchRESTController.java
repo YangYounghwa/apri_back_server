@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import apri.back_demo.dto.request.ApiRequest;
 import apri.back_demo.dto.request.AuthDto;
+import apri.back_demo.dto.response.ApiResponse;
 import apri.back_demo.exception.TourAPIVKError;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.SessionService;
@@ -37,7 +38,7 @@ public class SearchRESTController {
 
     // TODO : consult to frontend, what kind of return type needed
     @PostMapping("/keyword")
-    public ResponseEntity<?> searchKeyword(@RequestHeader Map<String,Object> header,@RequestBody ApiRequest<Map<String, Object>> req,HttpServletRequest request){
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>>searchKeyword(@RequestHeader Map<String,Object> header,@RequestBody ApiRequest<Map<String, Object>> req,HttpServletRequest request){
 
         Map<String,Object> reqData = req.getData();
         // Session Validation process
@@ -70,11 +71,11 @@ public class SearchRESTController {
             e.printStackTrace();
         }
 
-        return ResponseEntity.ok(searchResult);
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
     }
 
     @PostMapping("/location")
-    public ResponseEntity<?> searchLocation(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchLocation(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
 
 
         APIResultHandler handler = new APIResultHandler();
@@ -105,7 +106,7 @@ public class SearchRESTController {
         }
 
 
-        return ResponseEntity.ok(searchResult);
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
     }
 
 

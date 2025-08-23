@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import apri.back_demo.dto.request.ApiRequest;
 import apri.back_demo.dto.request.AuthDto;
+import apri.back_demo.dto.response.ApiResponse;
 import apri.back_demo.model.UserSession;
 import apri.back_demo.service.PathFinderService;
 import apri.back_demo.service.SessionService;
@@ -19,7 +20,7 @@ import graph_routing_01.Finder.model.ApriPathDTO;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-public class PathfinderContorller {
+public class PathfinderController {
 
     @Autowired
     private PathFinderService pfs;
@@ -28,7 +29,7 @@ public class PathfinderContorller {
     SessionService sessionService;
 
     @PostMapping("/findPath")
-    public ResponseEntity<?> postTest(@RequestHeader Map<String, Object> header,
+    public ResponseEntity<ApiResponse<ApriPathDTO>> postTest(@RequestHeader Map<String, Object> header,
             @RequestBody ApiRequest<Map<String, Object>> req,
             HttpServletRequest request) {
 
@@ -50,7 +51,7 @@ public class PathfinderContorller {
 
         ApriPathDTO path = pfs.findPath(stLon,stLat,endLon,endLat,0.0,true,dayNum);
 
-        return ResponseEntity.ok(path);
+        return ResponseEntity.ok(ApiResponse.success(path));
 
     }
 

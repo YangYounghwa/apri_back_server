@@ -31,7 +31,9 @@ public class TourApiCallService {
     String searchStay1 = "searchStay1";// 숙박 정보 조회
     String detailCommon2 = "detailCommon2";// 공통 정보 조회
     String areaBasedSyncList1 = "areaBasedSyncList1";// 국문관광정보 동기화 목록 조회
-    String detailPetTour1 = "detailPetTour1";// 국문관광 반려동물 여행정보
+    String detailPetTour2 = "detailPetTour2";// 국문관광 반려동물 여행정보
+    String detailIntro = "detailIntro2";
+    
 
     // String serviceKey = "serviceKey";
     // String numOfRows = "numOfRows";
@@ -146,8 +148,8 @@ public class TourApiCallService {
         QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 100, 1, this.ANDROID, "apricot");
         // Requirements for tourAPI
         // includes _type : "json", "MobileOS":"AND",
-
-        builder.add("contentTypeId",contentTypeId);
+        if(contentTypeId != null)
+            builder.add("contentTypeId",contentTypeId);
         if(cat1 != null)
         {
             builder.add("cat1",cat1);
@@ -161,6 +163,8 @@ public class TourApiCallService {
             }
 
         }
+
+        
         String url = builder.build();
 
         RestTemplate restTemplate = new RestTemplate();
@@ -325,5 +329,46 @@ public class TourApiCallService {
 
         return response.getBody();
     }
+
+        public String apiDetailIntro(String contentId,String contentTypeId) {
+
+        String baseUrl = KORSERVICE1_URL + this.detailIntro;
+        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 50, 1, this.ANDROID, "apricot");
+        // Requirements for tourAPI
+        // includes _type : "json", "MobileOS":"AND",
+
+        builder.add("contentId",contentId);//MUST
+        builder.add("contentTypeId",contentTypeId);//MUST
+    
+        String url = builder.build();
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+
+        headers.set("User-Agent", "Mozilla/5.0");
+        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
+
+        return response.getBody();
+    }
+
+    public String apiDetailPetTour(String contentId) {
+
+        String baseUrl = KORSERVICE1_URL + this.detailPetTour2;
+        QueryParamBuilder builder = new QueryParamBuilder(baseUrl, this.tourapiKey, 50, 1, this.ANDROID, "apricot");
+
+        builder.add("contentId",contentId);//MUST
+        String url = builder.build();
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+        headers.set("User-Agent", "Mozilla/5.0");
+        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
+
+        return response.getBody();
+    }
+
 
 }

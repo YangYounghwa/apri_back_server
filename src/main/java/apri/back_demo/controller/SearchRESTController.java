@@ -109,7 +109,125 @@ public class SearchRESTController {
         return ResponseEntity.ok(ApiResponse.success(searchResult));
     }
 
+        @PostMapping("/category")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchCategory(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
 
+
+        APIResultHandler handler = new APIResultHandler();
+
+
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long ApriId = userSession.getApri_id();
+
+
+        Long contentTypeId = Long.valueOf((String) reqData.get("contentTypeId"));
+        String cat1 = (String) reqData.get("cat1");
+        String cat2 = (String) reqData.get("cat2");
+        String cat3 = (String) reqData.get("cat3");
+
+        String msg;
+        msg = this.tapi.apiCategoryCode(contentTypeId,cat1,cat2,cat3);
+        List<Map<String, Object>> searchResult = null;
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (TourAPIVKError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
+    }
+
+            @PostMapping("/detailCommon")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchDetailCommon(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
+
+        APIResultHandler handler = new APIResultHandler();
+
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long ApriId = userSession.getApri_id();
+
+        String contentId = (String) reqData.get("contentId");
+
+        String msg;
+        msg = this.tapi.apiDetailCommon(contentId);
+        List<Map<String, Object>> searchResult = null;
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (TourAPIVKError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
+    }
+            @PostMapping("/detailIntro")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchDetailIntro(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
+
+        APIResultHandler handler = new APIResultHandler();
+
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long ApriId = userSession.getApri_id();
+
+        String contentTypeId = (String) reqData.get("contentTypeId");
+        String contentId = (String) reqData.get("contentId");
+        
+        String msg;
+        msg = this.tapi.apiDetailIntro(contentId,contentTypeId);
+        List<Map<String, Object>> searchResult = null;
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (TourAPIVKError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
+    }
+            @PostMapping("/detailPetTour")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchDetailPetTour(@RequestHeader Map<String,Object> header, @RequestBody ApiRequest<Map<String, Object>> req, HttpServletRequest request){
+
+        APIResultHandler handler = new APIResultHandler();
+
+        Map<String,Object> reqData = req.getData();
+        // Session Validation process
+        // Automatic login fail exception handled by GloberExceptionHandler 
+        AuthDto auth = req.getAuth();
+        String authString = (String) auth.getSessionId();
+        UserSession userSession = sessionService.validateSession(authString);
+        Long ApriId = userSession.getApri_id();
+
+        String contentId = (String) reqData.get("contentId");
+        
+        String msg;
+        msg = this.tapi.apiDetailPetTour(contentId);
+        List<Map<String, Object>> searchResult = null;
+        try {
+            searchResult = handler.returnAsList(msg);
+        } catch (TourAPIVKError e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+
+        return ResponseEntity.ok(ApiResponse.success(searchResult));
+    }
 
     
 
